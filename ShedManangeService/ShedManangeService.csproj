@@ -66,12 +66,15 @@
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DataAnalyse.cs" />
+    <Compile Include="Mode.cs" />
     <Compile Include="MySQLDBManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ShedService.asmx.cs">
       <DependentUpon>ShedService.asmx</DependentUpon>
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Threshold.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Properties\PublishProfiles\shedService配置文件.pubxml" />

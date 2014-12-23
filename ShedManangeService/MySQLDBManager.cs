@@ -11,6 +11,8 @@ namespace ShedManangeService
     {
         private static MySqlConnection con;
         private static MySqlCommand cmd;
+        public static string dbUser = "root";
+        public static string dbPwd = "199457";
 
         /// <summary>
         /// 建立数据库连接

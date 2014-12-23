@@ -5,6 +5,7 @@ using System.Web;
 using System.Web.Services;
 using System.Data;
 
+
 namespace ShedManangeService
 {
     /// <summary>
@@ -17,8 +18,11 @@ namespace ShedManangeService
     // [System.Web.Script.Services.ScriptService]
     public class ShedService : System.Web.Services.WebService
     {
-        private static string dbUser = "root";
-        private static string dbPwd = "199457";
+        public ShedService()
+        {
+            DataAnalyse.initThresHold();
+            DataAnalyse.initMode();
+        }       
 
         /// <summary>
         /// 上传数据接口
@@ -34,12 +38,48 @@ namespace ShedManangeService
             string time = DateTime.Now.ToString();
             //将数据插入到数据库中
             string sqlStr = "insert into data (nID, type, info, time) values('" + nID + "','" + dataType + "','" + dataInfo + "','" + time + "');";
-            int flag = MySQLDBManager.alterData(sqlStr, dbUser, dbPwd);
-            if (flag < 0)
+            MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
+
+            switch (dataType)
             {
+                case "T":
+                    DataAnalyse.temperature = Convert.ToDouble(dataInfo);
+                    break;
+                case "D":
+                    DataAnalyse.door = dataInfo;
+                    break;
+                case "S":
+                    DataAnalyse.smog = dataInfo;
+                    break;
+                case "P":
+                    DataAnalyse.pressure = Convert.ToDouble(dataInfo);
+                    break;
+                case "H":
+                    DataAnalyse.humidity = Convert.ToDouble(dataInfo);
+                    break;
+                default:
+                    break;
+            }
+
+            string mode = DataAnalyse.analyse();
+            if (!mode.Equals("正常"))
+            {
+                insertExceptionData(mode);
                 return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// 插入异常数据
+        /// </summary>
+        /// <param name="mode">异常模式</param>
+        private void insertExceptionData(string mode)
+        {
+            string sqlStr = "insert into exceptiondata(temperatrue, humidity, pressure, door, smog, status, time) values ('" +
+                    DataAnalyse.temperature + "','" + DataAnalyse.humidity + "','" + DataAnalyse.pressure + "','" + DataAnalyse.door + "','" +
+                    DataAnalyse.smog + "','" + mode + "','" + DateTime.Now.ToString() + "');";
+            MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
         }
 
         /// <summary>
@@ -50,7 +90,7 @@ namespace ShedManangeService
         public string getData()
         {
             string sqlStr = "select * from data where dID in (select max(dID) from data group by type) order by type asc;";
-            DataTable table = MySQLDBManager.queryData(sqlStr, dbUser, dbPwd);
+            DataTable table = MySQLDBManager.queryData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
             string data = "";
             foreach (DataRow row in table.Rows)
             {
@@ -62,7 +102,12 @@ namespace ShedManangeService
                 //每一条记录用$进行分隔
                 data += row[row.ItemArray.Length - 1] + "$";
             }
-            return data.Substring(0, data.Length - 1);
+            string mode = DataAnalyse.analyse();
+            if (!mode.Equals("正常"))
+            {
+                insertExceptionData(mode);
+            }
+            return data + mode;
         }
 
         /// <summary>
@@ -74,7 +119,7 @@ namespace ShedManangeService
         {
             //置operation字段值为1
             string sqlStr = "update control set operation = 1 where cID = 1;";
-            int flag = MySQLDBManager.alterData(sqlStr, dbUser, dbPwd);
+            int flag = MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
             if (flag < 0)
             {
                 return false;
@@ -89,7 +134,7 @@ namespace ShedManangeService
         public bool receiveCommand()
         {
             string sqlStr = "select operation from control where cID = 1;";
-            DataTable table = MySQLDBManager.queryData(sqlStr, dbUser, dbPwd);
+            DataTable table = MySQLDBManager.queryData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
             int flag = Convert.ToInt32(table.Rows[0][0]);
             if (flag == 1)
             {
@@ -105,12 +150,18 @@ namespace ShedManangeService
         public bool clearCommand()
         {
             string sqlStr = "update control set operation = 0 where cID = 1;";
-            int flag = MySQLDBManager.alterData(sqlStr, dbUser, dbPwd);
+            int flag = MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
             if (flag < 0)
             {
                 return false;
             }
             return true;
         }
+
+        //[WebMethod]
+        //public string getLogInfo()
+        //{
+
+        //}
     }
 }
