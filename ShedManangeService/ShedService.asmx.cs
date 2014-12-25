@@ -51,22 +51,22 @@ namespace ShedManangeService
                     string uName = table.Rows[0][0].ToString();
                     string status = table.Rows[0][1].ToString();
                     //翻转用户状态
-                    if (status.Equals("进入"))
+                    if (status.Equals("arrival"))
                     {
-                        status = "离开";
+                        status = "leaving";
                     }
                     else
                     {
-                        status = "进入";
+                        status = "arrival";
                     }
                     sqlStr = "insert into userlog (uID, uName, time, status) values ('" + dataInfo + "','" +
                     uName + "','" + DateTime.Now + "','" + status + "');";
                     MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
-                    return "用户" + uName + status;
+                    return "User " + uName + " " + status;
                 }
                 else
                 {
-                    return "无效用户";
+                    return "Invalid User";
                 }            
             }
             else
@@ -98,7 +98,7 @@ namespace ShedManangeService
             }
 
             string mode = DataAnalyse.analyse();
-            if (!mode.Equals("正常"))
+            if (!mode.Equals("normal"))
             {
                 insertExceptionData(mode);
             }
@@ -126,7 +126,7 @@ namespace ShedManangeService
                 data += row[row.ItemArray.Length - 1] + "$";
             }
             string mode = DataAnalyse.analyse();
-            if (!mode.Equals("正常"))
+            if (!mode.Equals("normal"))
             {
                 insertExceptionData(mode);
             }
@@ -235,7 +235,7 @@ namespace ShedManangeService
         {
             int maxID = getMaxID(IDAttribute, table);
 
-            string sqlStr = " select * from " + table + " where " + IDAttribute + " between " + (maxID - count + 1) + " and " + maxID + ";";
+            string sqlStr = " select * from " + table + " where " + IDAttribute + " between " + (maxID - count + 1) + " and " + maxID + " order by " + IDAttribute + " desc;";
             DataTable dataTable = MySQLDBManager.queryData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
             string data = "";
             foreach (DataRow row in dataTable.Rows)

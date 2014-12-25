@@ -66,7 +66,7 @@ namespace ShedManangeService
         /// <returns>当前大棚所处的状态</returns>
         public static string analyse()
         {
-            string analyseRes = "正常";
+            string analyseRes = "normal";
 
             string tMode = analyseMode("T", temperature);           //获取温度的状态
             string hMode = analyseMode("H", humidity);              //获取湿度的状态
