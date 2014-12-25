@@ -9,8 +9,8 @@ namespace ShedManangeService
 {
     public class DataAnalyse
     {
-        public static double temperature = 5;           //温度信息
-        public static string door = "opened";           //门磁信息 
+        public static double temperature = 25;           //温度信息
+        public static string door = "closed";           //门磁信息 
         public static double humidity = 20;             //湿度信息
         public static double pressure = 25;             //气压信息
         public static string smog = "normal";           //烟雾状态

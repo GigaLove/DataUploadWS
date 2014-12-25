@@ -18,11 +18,12 @@ namespace ShedManangeService
     // [System.Web.Script.Services.ScriptService]
     public class ShedService : System.Web.Services.WebService
     {
+
         public ShedService()
         {
             DataAnalyse.initThresHold();
             DataAnalyse.initMode();
-        }       
+        }
 
         /// <summary>
         /// 上传数据接口
@@ -32,14 +33,49 @@ namespace ShedManangeService
         /// <param name="dataInfo">数据信息</param>
         /// <returns>是否上传成功</returns>
         [WebMethod]
-        public bool upLoadData(string nID, string dataType, string dataInfo)
+        public string upLoadData(string nID, string dataType, string dataInfo)
         {
             //获取当前时间
             string time = DateTime.Now.ToString();
-            //将数据插入到数据库中
-            string sqlStr = "insert into data (nID, type, info, time) values('" + nID + "','" + dataType + "','" + dataInfo + "','" + time + "');";
-            MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
 
+            //数据类型为R，表示考勤信息
+            if (dataType.Equals("R"))
+            {
+                //搜索记录中当前人员的最近状态
+                string sqlStr = "select uName,status from userlog where lID in (select max(lID) from userlog where uID='" + dataInfo + "');";
+                DataTable table = MySQLDBManager.queryData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
+
+                //有相应记录表示用户有效，无表示无效
+                if (table.Rows.Count > 0)
+                {
+                    string uName = table.Rows[0][0].ToString();
+                    string status = table.Rows[0][1].ToString();
+                    //翻转用户状态
+                    if (status.Equals("进入"))
+                    {
+                        status = "离开";
+                    }
+                    else
+                    {
+                        status = "进入";
+                    }
+                    sqlStr = "insert into userlog (uID, uName, time, status) values ('" + dataInfo + "','" +
+                    uName + "','" + DateTime.Now + "','" + status + "');";
+                    MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
+                    return "用户" + uName + status;
+                }
+                else
+                {
+                    return "无效用户";
+                }            
+            }
+            else
+            {
+                //将传感器数据插入到数据库中
+                string sqlStr = "insert into data (nID, type, info, time) values('" + nID + "','" + dataType + "','" + dataInfo + "','" + time + "');";
+                MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
+            }
+            //根据不同的数据类型，分别记录最新数据
             switch (dataType)
             {
                 case "T":
@@ -65,21 +101,8 @@ namespace ShedManangeService
             if (!mode.Equals("正常"))
             {
                 insertExceptionData(mode);
-                return false;
             }
-            return true;
-        }
-
-        /// <summary>
-        /// 插入异常数据
-        /// </summary>
-        /// <param name="mode">异常模式</param>
-        private void insertExceptionData(string mode)
-        {
-            string sqlStr = "insert into exceptiondata(temperatrue, humidity, pressure, door, smog, status, time) values ('" +
-                    DataAnalyse.temperature + "','" + DataAnalyse.humidity + "','" + DataAnalyse.pressure + "','" + DataAnalyse.door + "','" +
-                    DataAnalyse.smog + "','" + mode + "','" + DateTime.Now.ToString() + "');";
-            MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
+            return mode;
         }
 
         /// <summary>
@@ -127,6 +150,7 @@ namespace ShedManangeService
             return true;
         }
 
+
         /// <summary>
         /// 获取operation字段值，1返回true，0返回false
         /// </summary>
@@ -143,6 +167,7 @@ namespace ShedManangeService
             return false;
         }
 
+
         /// <summary>
         /// 置operation字段值为0，清除操作标志
         /// </summary>
@@ -158,10 +183,72 @@ namespace ShedManangeService
             return true;
         }
 
-        //[WebMethod]
-        //public string getLogInfo()
-        //{
+        /// <summary>
+        /// 获取最近的5条异常信息
+        /// </summary>
+        /// <returns>异常信息</returns>
+        [WebMethod]
+        public string getExceptionRecord()
+        {
+            return getRecentData("dID", "exceptiondata", 5);
+        }
 
-        //}
+        [WebMethod]
+        public string getLogInfo()
+        {
+            return getRecentData("lID", "userlog", 3);
+        }
+
+        /// <summary>
+        /// 插入异常数据
+        /// </summary>
+        /// <param name="mode">异常模式</param>
+        private void insertExceptionData(string mode)
+        {
+            string sqlStr = "insert into exceptiondata(temperatrue, humidity, pressure, door, smog, status, time) values ('" +
+                    DataAnalyse.temperature + "','" + DataAnalyse.humidity + "','" + DataAnalyse.pressure + "','" + DataAnalyse.door + "','" +
+                    DataAnalyse.smog + "','" + mode + "','" + DateTime.Now.ToString() + "');";
+            MySQLDBManager.alterData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
+        }
+
+        /// <summary>
+        /// 获取特定表格中标号最大的数据项
+        /// </summary>
+        /// <param name="attribute">标号属性</param>
+        /// <param name="table">表名</param>
+        /// <returns>最大的ID</returns>
+        private int getMaxID(string attribute, string table)
+        {
+            string sqlStr = "select max(" + attribute + ") from " + table + ";";
+            DataTable dataTable = MySQLDBManager.queryData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
+            return Convert.ToInt32(dataTable.Rows[0][0]);
+        }
+
+        /// <summary>
+        /// 获取table中最新的数据信息
+        /// </summary>
+        /// <param name="IDAttribute">ID属性</param>
+        /// <param name="table">表名</param>
+        /// <param name="count">请求的最新数据的个数</param>
+        /// <returns>table中的最新信息</returns>
+        private string getRecentData(string IDAttribute, string table, int count)
+        {
+            int maxID = getMaxID(IDAttribute, table);
+
+            string sqlStr = " select * from " + table + " where " + IDAttribute + " between " + (maxID - count + 1) + " and " + maxID + ";";
+            DataTable dataTable = MySQLDBManager.queryData(sqlStr, MySQLDBManager.dbUser, MySQLDBManager.dbPwd);
+            string data = "";
+            foreach (DataRow row in dataTable.Rows)
+            {
+                for (int i = 0; i < row.ItemArray.Length - 1; i++)
+                {
+                    //记录的每一列用#进行分隔
+                    data += row[i] + "#";
+                }
+                //每一条记录用$进行分隔
+                data += row[row.ItemArray.Length - 1] + "$";
+            }
+            return data.Substring(0, data.Length - 1);
+        }
     }
 }
