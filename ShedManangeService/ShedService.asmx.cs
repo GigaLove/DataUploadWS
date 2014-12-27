@@ -38,6 +38,7 @@ namespace ShedManangeService
             //获取当前时间
             string time = DateTime.Now.ToString();
 
+
             //数据类型为R，表示考勤信息
             if (dataType.Equals("R"))
             {
